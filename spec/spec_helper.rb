@@ -1,1 +1,1 @@
-require_relative '../lib/klass'
+require_relative '../lib/manager'
