@@ -10,11 +10,11 @@ class Manager
     @filled = []
   end
 
-  def self.init_and_do data, new_bid
-    self.new(data).do(new_bid)
+  def self.init_and_handle_bid data, new_bid
+    self.new(data).handle_bid(new_bid)
   end
 
-  def do new_bid
+  def handle_bid new_bid
     write_new_bid new_bid
     execute_match new_bid
     self
@@ -46,10 +46,45 @@ class Manager
   def trade_for price, type, lots
     sum_lots = @data[price][type].map {|x| x[:lots] }.sum
     if sum_lots <= lots
-      @data[price][type].each {|x| x[:type] = 'filled' }
       @filled.push(*@data[price][type])
       @data[price][type].clear
+    else
+      @data[price][type] = get_bid_trade_lots(price, type, sum_lots, lots)
+
+      @data[price][type].each do |bid|
+        bid.delete(:bid_trade_lots_remain)
+        filled_bid = bid.clone
+        filled_bid[:lots] = filled_bid[:bid_trade_lots_whole]
+        bid.delete(:bid_trade_lots_whole)
+        filled_bid.delete(:bid_trade_lots_whole)
+        @filled << filled_bid
+      end
     end
+  end
+
+  def get_bid_trade_lots price, type, sum_lots, lots
+    bids = @data[price][type].clone
+
+    bids.each do |bid|
+      bid[:bid_trade_lots_whole] = (bid[:lots] * lots / sum_lots.to_f).floor
+      bid[:bid_trade_lots_remain] = (bid[:lots] * lots / sum_lots.to_f) - bid[:bid_trade_lots_whole]
+    end
+
+    remain_pool = lots - bids.map {|x| x[:bid_trade_lots_whole] }.sum
+    initial_order = bids.map {|x| x[:order] }
+    bids = bids.sort_by {|x| x[:bid_trade_lots_remain]}.reverse
+
+    i = 0
+    while remain_pool > 0
+      bids[i][:bid_trade_lots_whole] += 1
+      i += 1
+      remain_pool -= 1
+    end
+
+    bids.each do |x|
+      x[:lots] -= x[:bid_trade_lots_whole]
+    end
+    bids.sort_by {|x| initial_order.find_index(x[:order])}
   end
 
   def reverse_type type
@@ -57,23 +92,3 @@ class Manager
     return :buy if type == :sell
   end
 end
-
-def solution(a)
-  sorted = a.sort
-  start = 0
-  result = 0
-
-  a.each_index do |i|
-    next if a[start..i].sort != sorted[start..i]
-    start = i + 1
-    result += 1
-  end
-
-  result
-end
-
-
-
-
-
-

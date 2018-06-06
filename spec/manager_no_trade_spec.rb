@@ -1,7 +1,7 @@
 require_relative 'spec_helper'
 
 describe Manager do
-  subject(:service_call) { described_class.init_and_do(initial_data, new_bid) }
+  subject(:service_call) { described_class.init_and_handle_bid(initial_data, new_bid) }
 
   def be val
     expect(service_call.data).to eq val
